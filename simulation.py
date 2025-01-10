@@ -65,6 +65,7 @@ def monte_carlo_accruing_wealth(
     monthly_deposit_growth: float,
     simulations: int = 1000,
     years: int = 35,
+    ticker_file: str = "sp-500-historical-annual-returns.csv",
 ) -> pd.DataFrame:
     """
     Simulates accruing wealth over 35 years on a monthly basis using a Monte Carlo approach.
@@ -75,12 +76,13 @@ def monte_carlo_accruing_wealth(
         monthly_deposit_growth (float): Yearly growth of monthly deposits (as a decimal).
         simulations (int): Number of Monte Carlo simulations to run.
         years (int): Number of years to simulate.
+        ticker_file (str): File containing historical returns data.
 
     Returns:
         pd.DataFrame: A DataFrame with columns "Net Worth", "Interest", "Monthly Investment",
                       "Monthly Investment - Cumulative Sum", and "Interest - Cumulative Sum"
     """
-    historical_returns = pd.read_csv(f"{os.getcwd()}/sp-500-historical-annual-returns.csv")
+    historical_returns = pd.read_csv(f"{os.getcwd()}/data/{ticker_file}")
 
     # Storage for simulation results
     simulation_results = [

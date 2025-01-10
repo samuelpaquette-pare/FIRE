@@ -2,6 +2,17 @@
 This module contains the functions to render the execution tabs of the Streamlit app.
 """
 
+# TODO: per REER and CELI
+# TODO: Prendre en compte des grosses dépenses prévu
+# TODO: Check part about perfect calculator https://milliondollarjourney.com/5-useful-retirement-calculators-how-much-do-you-need-to-retire.htm
+
+ticker_mapping = {
+    "S&P 500": "sp-500-historical-annual-returns.csv", 
+    "NASDAQ Composite": "nasdaq-historical-annual-returns.csv", 
+    "Dow Jones Industrial Average": "dow-jones-historical-annual-returns.csv", 
+    "S&P TSX": "sp-tsx-historical-annual-returns.csv"
+}
+
 import altair as alt
 import pandas as pd
 pd.options.display.float_format = '${:,.2f}'.format
@@ -152,12 +163,17 @@ def render_time_until_tab():
             st.info(f"Net worth exceeds fire objective at: {date_exceeding.date()}")
 
     elif simulation_mode == "Monte Carlo":
+        ticker_option = st.selectbox(
+            "What index would you like to use in the simulation?",
+            ticker_mapping.keys()
+        )
         simulation_df = monte_carlo_accruing_wealth(
             st.session_state.current_net_worth,
             base_monthly_investment,
             monthly_deposit_growth,
             100,
-            35
+            35,
+            ticker_mapping[ticker_option],
         )
 
         simulation_df = simulation_df.reset_index(names="Year")
