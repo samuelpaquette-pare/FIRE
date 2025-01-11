@@ -2,10 +2,6 @@
 This module contains the functions to render the execution tabs of the Streamlit app.
 """
 
-# TODO: per REER and CELI
-# TODO: Prendre en compte des grosses dépenses prévu
-# TODO: Check part about perfect calculator https://milliondollarjourney.com/5-useful-retirement-calculators-how-much-do-you-need-to-retire.htm
-
 ticker_mapping = {
     "S&P 500": "sp-500-historical-annual-returns.csv", 
     "NASDAQ Composite": "nasdaq-historical-annual-returns.csv", 
@@ -26,9 +22,9 @@ def plot_results(data_df: pd.DataFrame) -> None:
         id_vars=["Year"],
         value_vars=[
             "Net Worth",
-            "Interest",
+            "Interest Made",
             "Monthly Investment",
-            "Interest - Cumulative Sum",
+            "Interest Made - Cumulative Sum",
             "Monthly Investment - Cumulative Sum",
         ],
         var_name="Amount Type",
@@ -38,7 +34,7 @@ def plot_results(data_df: pd.DataFrame) -> None:
     criterion = monthly_amounts_df["Amount Type"].isin(
         [
             "Net Worth",
-            "Interest - Cumulative Sum",
+            "Interest Made - Cumulative Sum",
             "Monthly Investment - Cumulative Sum",
         ]
     )
@@ -76,9 +72,9 @@ def render_execution_tab():
     st.session_state.current_net_worth = current_net_worth
 
     fi_mode = st.radio(
-        "Choose one of the following options to simulate your path to FI.",
+        "Choose one of the following options to simulate your path to financial independence.",
         options=[
-            "I want to know when I can be FI",
+            "I want to know when I can be financially independent",
             "I want to retire at a specific age",
         ],
         captions=[
@@ -86,10 +82,10 @@ def render_execution_tab():
             "How much to put aside to meet objective at age x",
         ],
         index=None,
-        help="Choose the mode you want to use to simulate your path to FI. If you want to explore or know what you can put aside/invest, choose the first option. If you have a specific age in mind, choose the second option.",
+        help="Choose the mode you want to use to simulate your path to financial independence. If you want to explore or know what you can put aside/invest, choose the first option. If you have a specific age in mind, choose the second option.",
     )
 
-    if fi_mode == "I want to know when I can be FI":
+    if fi_mode == "I want to know when I can be financially independent":
         render_time_until_tab()
         
     elif fi_mode == "I want to retire at a specific age":
@@ -133,7 +129,7 @@ def render_time_until_tab():
 
     if simulation_mode == "Fixed return rate":
         expected_interest_rate = st.slider(
-            "Interest Rate (% per year)",
+            "Interest Rate (% per year) with no inflation",
             min_value=0.0,
             max_value=15.0,
             step=0.1,
@@ -160,50 +156,54 @@ def render_time_until_tab():
         if date_exceeding is pd.NaT:
             st.warning("Net worth will not exceed fire objective in the next 35 years.")
         else:
-            st.info(f"Net worth exceeds fire objective at: {date_exceeding.date()}")
+            st.info(f"Net worth exceeds fire objective at: {date_exceeding}")
+        
+        st.table(data_df)
 
     elif simulation_mode == "Monte Carlo":
         ticker_option = st.selectbox(
             "What index would you like to use in the simulation?",
             ticker_mapping.keys()
         )
-        simulation_df = monte_carlo_accruing_wealth(
-            st.session_state.current_net_worth,
-            base_monthly_investment,
-            monthly_deposit_growth,
-            100,
-            35,
-            ticker_mapping[ticker_option],
-        )
 
-        simulation_df = simulation_df.reset_index(names="Year")
-        simulation_df["Year"] = simulation_df["Year"].dt.date
-        net_worth_df = simulation_df.drop(columns=["Interest", "Monthly Investment", "Monthly Investment - Cumulative Sum", "Interest - Cumulative Sum"])
+        with st.spinner('Making some calculations...'):
+            simulation_df = monte_carlo_accruing_wealth(
+                st.session_state.current_net_worth,
+                base_monthly_investment,
+                monthly_deposit_growth,
+                100,
+                35,
+                ticker_mapping[ticker_option],
+            )
 
-        chart = alt.Chart(net_worth_df).mark_line().encode(
-            x="Year:T",
-            y="Net Worth:Q",
-            detail="Iteration:N",
-            tooltip=["Year", "Net Worth", "Iteration"],
-            opacity=alt.value(0.2),
-        ).properties(
-            title="Monte Carlo simulation of net worth over time",
-        )
-        objective_line = (
-            alt.Chart(pd.DataFrame({"Objective": [st.session_state.get("fire_objective", 0)]}))
-            .mark_rule()
-            .encode(y="Objective:Q")
-        )
-        st.altair_chart(chart + objective_line, use_container_width=True)
+            simulation_df = simulation_df.reset_index(names="Year")
+            net_worth_df = simulation_df.drop(columns=["Interest Made", "Monthly Investment", "Monthly Investment - Cumulative Sum", "Interest Made - Cumulative Sum"])
 
-        result_avg = simulation_df.groupby("Year").agg({
-            "Net Worth": "mean", 
-            "Interest - Cumulative Sum": "mean",
-            "Monthly Investment - Cumulative Sum": "mean",
-            "Interest": "mean",
-            "Monthly Investment": "mean",
-        })
+            chart = alt.Chart(net_worth_df).mark_line().encode(
+                x="Year:T",
+                y="Net Worth:Q",
+                detail="Iteration:N",
+                tooltip=["Year", "Net Worth", "Iteration"],
+                opacity=alt.value(0.2),
+            ).properties(
+                title="Monte Carlo simulation of net worth over time",
+            )
+            objective_line = (
+                alt.Chart(pd.DataFrame({"Objective": [st.session_state.get("fire_objective", 0)]}))
+                .mark_rule()
+                .encode(y="Objective:Q")
+            )
+            st.altair_chart(chart + objective_line, use_container_width=True)
+
+            result_avg = simulation_df.groupby("Year").agg({
+                "Net Worth": "mean", 
+                "Interest Made - Cumulative Sum": "mean",
+                "Monthly Investment - Cumulative Sum": "mean",
+                "Interest Made": "mean",
+                "Monthly Investment": "mean",
+            })
         plot_results(result_avg)
+        st.table(result_avg)
 
 
 def render_age_tab():
@@ -268,11 +268,13 @@ def render_age_tab():
     )
 
     plot_results(data_df)
-    
+
     date_exceeding = data_df[
         data_df["Net Worth"] >= fire_objective
     ].index.min()
     if date_exceeding is pd.NaT:
         st.warning("Net worth will not exceed fire objective in the next 35 years.")
     else:
-        st.info(f"Net worth exceeds fire objective at: {date_exceeding.date()}")
+        st.info(f"Net worth exceeds fire objective at: {date_exceeding}")
+
+    st.table(data_df)

@@ -38,7 +38,7 @@ def simulate_time_series(
     data = []
     for year in range(years):
         yearly_interest_rate = historical_returns[year]
-
+        
         for _ in range(12):
             current_val = calculate_month_values(
                 current_net_worth,
@@ -51,10 +51,11 @@ def simulate_time_series(
             data.append([current_net_worth, current_val["interest_made"], current_monthly_deposit])
 
     dates = pd.date_range(start=datetime.now(), periods=years * 12, freq="MS")
-    df = pd.DataFrame(data, index=dates, columns=["Net Worth", "Interest", "Monthly Investment"])
+    df = pd.DataFrame(data, index=dates, columns=["Net Worth", "Interest Made", "Monthly Investment"])
 
     df["Monthly Investment - Cumulative Sum"] = df["Monthly Investment"].cumsum()
-    df["Interest - Cumulative Sum"] = df["Interest"].cumsum()
+    df["Interest Made - Cumulative Sum"] = df["Interest Made"].cumsum()
+    df.index = df.index.date
 
     return df
 
@@ -79,8 +80,8 @@ def monte_carlo_accruing_wealth(
         ticker_file (str): File containing historical returns data.
 
     Returns:
-        pd.DataFrame: A DataFrame with columns "Net Worth", "Interest", "Monthly Investment",
-                      "Monthly Investment - Cumulative Sum", and "Interest - Cumulative Sum"
+        pd.DataFrame: A DataFrame with columns "Net Worth", "Interest Made", "Monthly Investment",
+                      "Monthly Investment - Cumulative Sum", and "Interest Made - Cumulative Sum"
     """
     historical_returns = pd.read_csv(f"{os.getcwd()}/data/{ticker_file}")
 
